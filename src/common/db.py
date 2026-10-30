@@ -17,7 +17,7 @@ class Database:
             database=settings.db.name,
             min_size=settings.db.pool_min_size,
             max_size=settings.db.pool_max_size,
-            command_timeout=settings.db.command_timeout_seconds
+            command_timeout=settings.db.command_timeout_seconds,
         )
 
     async def disconnect(self) -> None:

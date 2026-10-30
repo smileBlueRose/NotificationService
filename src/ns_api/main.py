@@ -2,11 +2,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from loguru import logger
 
 from common.config import settings
 from common.db import Database
+from common.errors import ServiceUnavailableError
 from ns_api.event_publisher import EventPublisher
 from ns_api.repository import AcceptedEventRepository
 from ns_api.router import router
@@ -37,6 +39,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="NS API", lifespan=lifespan)
 app.include_router(router)
+
+
+@app.exception_handler(ServiceUnavailableError)
+async def handle_service_unavailable(request: Request, error: ServiceUnavailableError) -> JSONResponse:
+    logger.warning("service_unavailable path={} reason={!r}", request.url.path, error.__cause__)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": str(error)},
+    )
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")

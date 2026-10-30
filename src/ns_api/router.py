@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
+from starlette.responses import RedirectResponse
 
 from common.models import Event
 from ns_api.use_case import AcceptEventUseCase
