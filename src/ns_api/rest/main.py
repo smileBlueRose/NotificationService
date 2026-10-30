@@ -11,7 +11,7 @@ from common.db import Database
 from common.errors import ServiceUnavailableError
 from ns_api.event_publisher import EventPublisher
 from ns_api.repository import AcceptedEventRepository
-from ns_api.router import router
+from ns_api.rest.router import router
 from ns_api.use_case import AcceptEventUseCase
 
 
