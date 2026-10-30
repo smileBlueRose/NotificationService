@@ -4,8 +4,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class KafkaSettings(BaseModel):
     bootstrap_servers: str
+    publish_timeout_seconds: float
     events_topic: str
-    publish_timeout_seconds: float | int
+    email_topic: str
+    push_topic: str
 
 
 class ApiSettings(BaseModel):
