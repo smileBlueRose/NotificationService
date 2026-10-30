@@ -38,6 +38,12 @@ class MockProvidersSettings(BaseModel):
     port: int
     failure_rate: float
 
+class WorkerSettings(BaseModel):
+    group_id_prefix: str
+    providers_base_url: str
+    provider_timeout_seconds: float
+    infrastructure_retry_delay_seconds: float
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -50,6 +56,6 @@ class Settings(BaseSettings):
     db: DatabaseSettings
     processor: ProcessorSettings
     mock_providers: MockProvidersSettings
-
+    worker: WorkerSettings
 
 settings = Settings()
