@@ -2,42 +2,46 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, status
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI
 from loguru import logger
 
-from ns_api.event_publisher import EventPublisher
 from common.config import settings
-from common.models import Event
-
-event_publisher = EventPublisher()
+from common.db import Database
+from ns_api.event_publisher import EventPublisher
+from ns_api.repository import AcceptedEventRepository
+from ns_api.router import router
+from ns_api.use_case import AcceptEventUseCase
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    database = Database()
+    event_publisher = EventPublisher()
+
+    await database.connect()
     await event_publisher.start()
-    logger.info("Kafka producer started")
+    logger.info("ns_api started")
+
+    accepted_event_repository = AcceptedEventRepository(database.pool)
+    app.state.accept_event_use_case = AcceptEventUseCase(
+        accepted_event_repository=accepted_event_repository,
+        event_publisher=event_publisher,
+    )
+
     yield
+
     await event_publisher.stop()
-    logger.info("Kafka producer stopped")
+    await database.disconnect()
+    logger.info("ns_api stopped")
 
 
 app = FastAPI(title="NS API", lifespan=lifespan)
+app.include_router(router)
 
-
-@app.get("/")
-async def root() -> RedirectResponse:
-    return RedirectResponse(url='/docs')
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.post("/v1/events", status_code=status.HTTP_202_ACCEPTED)
-async def accept_event(event: Event) -> dict[str, str]:
-    await event_publisher.publish(event)
-    return {"status": "accepted"}
 
 
 if __name__ == "__main__":
