@@ -1,10 +1,11 @@
+import asyncio
+
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
 from common.config import settings
 from common.errors import ServiceUnavailableError
 from common.models import Event
-import asyncio
 
 
 class EventPublisher:

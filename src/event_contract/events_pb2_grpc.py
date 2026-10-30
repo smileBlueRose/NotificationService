@@ -2,7 +2,6 @@
 """Client and server classes corresponding to protobuf-defined services."""
 
 import grpc
-import warnings
 
 from event_contract import events_pb2 as event__contract_dot_events__pb2
 
