@@ -23,6 +23,7 @@ create_topic email-retry-5m 8
 create_topic push-retry-5s 20
 create_topic push-retry-30s 20
 create_topic push-retry-5m 20
+create_topic events-dlq 3
 create_topic email-dlq 3
 create_topic push-dlq 3
 create_topic user-events 2
