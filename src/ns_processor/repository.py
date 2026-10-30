@@ -1,7 +1,7 @@
 import asyncpg
 
 from common.models import Notification, NotificationStatus, Platform
-from ns_processor.models import Recipient
+from ns_processor.models import Recipient, RecipientDevice
 
 
 class RecipientRepository:
@@ -38,8 +38,7 @@ class NotificationRepository:
 
     async def add_pending(self, notifications: list[Notification]) -> None:
         await self._pool.executemany(
-            "INSERT INTO notifications (notification_id, event_id, channel, target, status) "
-            "VALUES ($1, $2, $3, $4, $5) ON CONFLICT (notification_id) DO NOTHING",
+            "INSERT INTO notifications (notification_id, event_id, channel, target, status) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (notification_id) DO NOTHING",
             [
                 (
                     notification.notification_id,
