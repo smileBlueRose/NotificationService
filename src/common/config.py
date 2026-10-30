@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class KafkaSettings(BaseModel):
     bootstrap_servers: str
     events_topic: str
+    publish_timeout_seconds: float | int
 
 
 class ApiSettings(BaseModel):
@@ -23,6 +24,7 @@ class DatabaseSettings(BaseModel):
     pool_min_size: int = 2
     pool_max_size: int = 10
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,5 +35,6 @@ class Settings(BaseSettings):
     kafka: KafkaSettings
     api: ApiSettings
     db: DatabaseSettings
+
 
 settings = Settings()

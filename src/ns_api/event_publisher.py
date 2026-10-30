@@ -2,6 +2,7 @@ from aiokafka import AIOKafkaProducer
 
 from common.config import settings
 from common.models import Event
+import asyncio
 
 
 class EventPublisher:
@@ -22,8 +23,10 @@ class EventPublisher:
     async def publish(self, event: Event) -> None:
         if self._producer is None:
             raise RuntimeError("EventPublisher is not started")
-        await self._producer.send_and_wait(
-            topic=settings.kafka.events_topic,
-            key=str(event.recipient_id).encode(),
-            value=event.model_dump_json().encode(),
-        )
+
+        async with asyncio.timeout(settings.kafka.publish_timeout_seconds):
+            await self._producer.send_and_wait(
+                topic=settings.kafka.events_topic,
+                key=str(event.recipient_id).encode(),
+                value=event.model_dump_json().encode(),
+            )
