@@ -4,6 +4,7 @@ from loguru import logger
 
 from common.models import Channel, Event, Notification
 from ns_processor.models import Recipient
+from ns_processor.notification_publisher import NotificationPublisher
 from ns_processor.repository import NotificationRepository, RecipientRepository
 
 
@@ -12,18 +13,26 @@ class ProcessEventUseCase:
         self,
         recipient_repository: RecipientRepository,
         notification_repository: NotificationRepository,
+        notification_publisher: NotificationPublisher,
     ) -> None:
         self._recipient_repository = recipient_repository
         self._notification_repository = notification_repository
+        self._notification_publisher = notification_publisher
 
-    async def execute(self, event: Event) -> list[Notification]:
+    async def execute(self, event: Event) -> None:
         recipient = await self._recipient_repository.get(event.recipient_id)
         if recipient is None:
             logger.warning("unknown_recipient event_id={} recipient_id={}", event.event_id, event.recipient_id)
-            return []
+            return
+
         notifications = self._create_notifications(event, recipient)
+        if not notifications:
+            logger.info("no_enabled_channels event_id={} recipient_id={}", event.event_id, event.recipient_id)
+            return
+
         await self._notification_repository.add_pending(notifications)
-        return notifications
+        await self._notification_publisher.publish(notifications)
+        logger.info("event_processed event_id={} notifications={}", event.event_id, len(notifications))
 
     def _create_notifications(self, event: Event, recipient: Recipient) -> list[Notification]:
         notifications: list[Notification] = []

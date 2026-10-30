@@ -8,6 +8,7 @@ class KafkaSettings(BaseModel):
     events_topic: str
     email_topic: str
     push_topic: str
+    events_dlq_topic: str
 
 
 class ApiSettings(BaseModel):
@@ -27,6 +28,10 @@ class DatabaseSettings(BaseModel):
     pool_max_size: int = 10
     command_timeout_seconds: int = 1
 
+class ProcessorSettings(BaseModel):
+    group_id: str
+    base_retry_delay_seconds: float
+    max_attempts: int
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -38,6 +43,7 @@ class Settings(BaseSettings):
     kafka: KafkaSettings
     api: ApiSettings
     db: DatabaseSettings
+    processor: ProcessorSettings
 
 
 settings = Settings()
