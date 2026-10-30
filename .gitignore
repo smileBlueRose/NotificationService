@@ -1,2 +1,8 @@
+# Secrets
+.env
+
+# IDE
 .idea
+
+# etc
 notes.md
