@@ -23,6 +23,7 @@ class DatabaseSettings(BaseModel):
 
     pool_min_size: int = 2
     pool_max_size: int = 10
+    command_timeout_seconds: int = 1
 
 
 class Settings(BaseSettings):
