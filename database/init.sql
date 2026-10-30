@@ -30,15 +30,3 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     sent_at TIMESTAMPTZ
 );
-
-INSERT INTO recipients (recipient_id, email, email_enabled, push_enabled) VALUES
-    (1, 'user1@example.com', TRUE, TRUE),
-    (2, 'user2@example.com', FALSE, TRUE),
-    (3, 'user3@example.com', TRUE, FALSE)
-ON CONFLICT (recipient_id) DO NOTHING;
-
-INSERT INTO recipient_devices (device_token, recipient_id, platform) VALUES
-    ('ios-token-1', 1, 'ios'),
-    ('android-token-2', 2, 'android'),
-    ('ios-token-2', 2, 'ios')
-ON CONFLICT (device_token) DO NOTHING;
