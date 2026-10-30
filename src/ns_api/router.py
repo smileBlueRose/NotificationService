@@ -15,9 +15,7 @@ def get_accept_event_use_case(request: Request) -> AcceptEventUseCase:
 @router.post("/events", status_code=status.HTTP_202_ACCEPTED)
 async def accept_event(
     event: Event,
-    accept_event_use_case: Annotated[
-        AcceptEventUseCase, Depends(get_accept_event_use_case)
-    ],
+    accept_event_use_case: Annotated[AcceptEventUseCase, Depends(get_accept_event_use_case)],
 ) -> dict[str, str]:
     await accept_event_use_case.execute(event)
     return {"status": "accepted"}
