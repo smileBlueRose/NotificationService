@@ -45,7 +45,12 @@ class DeliverNotificationUseCase:
         retry_notification = notification.model_copy(update={"attempts": attempts})
         if next_topic == self._channel_topics.dead_letter:
             await self._notification_repository.mark_failed(notification.notification_id, attempts, error)
-            logger.error("notification_failed notification_id={} attempts={} error={}", notification.notification_id, attempts, error)
+            logger.error(
+                "notification_failed notification_id={} attempts={} error={}",
+                notification.notification_id,
+                attempts,
+                error,
+            )
         else:
             await self._notification_repository.mark_retrying(notification.notification_id, attempts, error)
             logger.warning(
