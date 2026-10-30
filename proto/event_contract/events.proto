@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package notification.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_USER_REGISTERED = 1;
+  EVENT_TYPE_PASSWORD_RESET = 2;
+  EVENT_TYPE_PIN_LIKED = 3;
+  EVENT_TYPE_PIN_COMMENTED = 4;
+  EVENT_TYPE_USER_FOLLOWED = 5;
+}
+
+message Event {
+  string event_id = 1;
+  EventType event_type = 2;
+  int64 recipient_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Struct payload = 5;
+}
+
+message AcceptEventResponse {
+  string status = 1;
+}
+
+service EventService {
+  rpc AcceptEvent(Event) returns (AcceptEventResponse);
+}

@@ -28,21 +28,25 @@ class DatabaseSettings(BaseModel):
     pool_max_size: int = 10
     command_timeout_seconds: int = 1
 
+
 class ProcessorSettings(BaseModel):
     group_id: str
     base_retry_delay_seconds: float
     max_attempts: int
+
 
 class MockProvidersSettings(BaseModel):
     host: str
     port: int
     failure_rate: float
 
+
 class WorkerSettings(BaseModel):
     group_id_prefix: str
     providers_base_url: str
     provider_timeout_seconds: float
     infrastructure_retry_delay_seconds: float
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -57,5 +61,6 @@ class Settings(BaseSettings):
     processor: ProcessorSettings
     mock_providers: MockProvidersSettings
     worker: WorkerSettings
+
 
 settings = Settings()

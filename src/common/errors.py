@@ -5,6 +5,7 @@ from aiokafka.errors import KafkaError
 class ServiceUnavailableError(Exception):
     pass
 
+
 TRANSIENT_ERRORS = (
     TimeoutError,
     OSError,
