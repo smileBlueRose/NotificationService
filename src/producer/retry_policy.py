@@ -14,7 +14,9 @@ class RetryPolicy:
     def is_retryable_status(self, status_code: int) -> bool:
         return status_code in RETRYABLE_STATUS_CODES
 
-    def can_retry(self, attempt: int, elapsed_seconds: float, next_delay_seconds: float) -> bool:
+    def can_retry(
+        self, attempt: int, elapsed_seconds: float, next_delay_seconds: float
+    ) -> bool:
         has_attempts_left = attempt < self.max_attempts
         fits_deadline = elapsed_seconds + next_delay_seconds < self.deadline_seconds
         return has_attempts_left and fits_deadline

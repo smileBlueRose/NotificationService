@@ -13,7 +13,9 @@ from producer.retry_policy import RetryPolicy
 
 
 class EventProducer:
-    def __init__(self, http_client: httpx.AsyncClient, retry_policy: RetryPolicy) -> None:
+    def __init__(
+        self, http_client: httpx.AsyncClient, retry_policy: RetryPolicy
+    ) -> None:
         self._http_client = http_client
         self._retry_policy = retry_policy
 
@@ -37,8 +39,12 @@ class EventProducer:
                 return event.event_id
             delay_seconds = self._retry_policy.delay_before_next_attempt(attempt)
             elapsed_seconds = time.monotonic() - started_at
-            if not self._retry_policy.can_retry(attempt, elapsed_seconds, delay_seconds):
-                raise RetriesExhaustedError(f"Event {event.event_id} was not delivered after {attempt} attempts")
+            if not self._retry_policy.can_retry(
+                attempt, elapsed_seconds, delay_seconds
+            ):
+                raise RetriesExhaustedError(
+                    f"Event {event.event_id} was not delivered after {attempt} attempts"
+                )
             await asyncio.sleep(delay_seconds)
             attempt += 1
 
@@ -50,7 +56,12 @@ class EventProducer:
                 headers={"Content-Type": "application/json"},
             )
         except httpx.TransportError as error:
-            logger.warning("event_send_failed event_id={} attempt={} error={!r}", event.event_id, attempt, error)
+            logger.warning(
+                "event_send_failed event_id={} attempt={} error={!r}",
+                event.event_id,
+                attempt,
+                error,
+            )
             return False
         if response.status_code == httpx.codes.ACCEPTED:
             return True
@@ -62,4 +73,6 @@ class EventProducer:
                 response.status_code,
             )
             return False
-        raise EventRejectedError(f"Event {event.event_id} rejected with status {response.status_code}")
+        raise EventRejectedError(
+            f"Event {event.event_id} rejected with status {response.status_code}"
+        )
