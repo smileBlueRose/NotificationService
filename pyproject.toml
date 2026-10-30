@@ -1,0 +1,15 @@
+[project]
+name = "sis2"
+version = "0.1.0"
+description = "Notification Service"
+readme = "README.md"
+authors = [
+    { name = "Smile", email = "156634569+smileBlueRose@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "aiokafka>=0.15.0",
+    "fastapi>=0.162.0",
+    "pydantic-settings>=2.16.2",
+    "uvicorn>=0.54.0",
+]
