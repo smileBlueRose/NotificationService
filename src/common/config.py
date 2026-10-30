@@ -33,6 +33,11 @@ class ProcessorSettings(BaseModel):
     base_retry_delay_seconds: float
     max_attempts: int
 
+class MockProvidersSettings(BaseModel):
+    host: str
+    port: int
+    failure_rate: float
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -44,6 +49,7 @@ class Settings(BaseSettings):
     api: ApiSettings
     db: DatabaseSettings
     processor: ProcessorSettings
+    mock_providers: MockProvidersSettings
 
 
 settings = Settings()
