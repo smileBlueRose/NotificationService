@@ -10,6 +10,8 @@ requires-python = ">=3.13"
 dependencies = [
     "aiokafka>=0.15.0",
     "fastapi>=0.162.0",
+    "loguru>=0.7.3",
+    "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
     "uvicorn>=0.54.0",
 ]
