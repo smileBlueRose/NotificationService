@@ -123,7 +123,8 @@ curl -i -X POST http://127.0.0.1:8000/v1/events \
 
 - Both APIs call the same `AcceptEventUseCase`; only the transport differs.
 - Each API: 1 container, 4 processes (uvicorn workers with `uvloop` for REST, `SO_REUSEPORT` processes for gRPC), Kafka producer `linger_ms=5`.
-- 3 Kafka brokers, 1 PostgreSQL, background pipeline running. One Podman VM: 7 vCPU, 16 GB RAM.
+- 3 Kafka brokers, 1 PostgreSQL. One Podman VM: 7 vCPU, 16 GB RAM.
+- Processors and notification workers were running during the benchmark and processed the accepted events, sharing Kafka, PostgreSQL and CPU with the API.
 - Load generator: k6 inside the container network (no macOS port forwarding). N virtual users, each sends the next request right after the previous response.
 - Event: `pin_liked` for a random recipient out of 1000, unique `event_id` per request.
 - VUs 1, 10, 50: 10 000 requests; VUs 100, 200: 100 000 requests.
