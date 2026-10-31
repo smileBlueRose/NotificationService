@@ -201,14 +201,14 @@ Client traffic for 100 000 requests: REST 32 MB sent, gRPC 16 MB sent.
 
 I keep REST/JSON for the NS API:
 
-- gRPC gives no latency or throughput gain at the SIS #1 load, only less traffic that is not a bottleneck.
+- gRPC gives no latency or throughput gain at any tested load, only less traffic that is not a bottleneck.
 - End-to-end delivery (p99 < 5 s) is dominated by Kafka, the processor and providers (~250 ms per provider call, SIS #1 estimate), not by the input format.
 - Events are stored in Kafka as JSON anyway, so the protobuf size gain is lost at the first hop.
 - REST is simpler for producers: no generated code, debugging with `curl`, readable messages.
 
 ## Differences from SIS #1
 
-- **Scale:** 3 Kafka brokers in one VM, 1 PostgreSQL instead of a sharded cluster (Citus, 7 shards with replicas), 1 REST and 1 gRPC API, 2 processors and 2 workers per channel instead of 5 + 8 + 4 + 10 instances.
+- **Scale:** 3 Kafka brokers in one VM, 1 REST and 1 gRPC API, 2 processors and 2 workers per channel instead of 5 + 8 + 4 + 10 instances.их
 - **No Redis:** no recipient cache and no provider rate limiter; recipients are read from PostgreSQL directly.
 - **No load balancer and no Recipient Sync:** recipients come from `seed.sql`, topic `user-events` is created but not used.
 - **Providers are mocked:** only `200` / `500`, no permanent errors like `UNREGISTERED`.
