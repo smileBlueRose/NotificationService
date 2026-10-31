@@ -16,6 +16,7 @@ class EventPublisher:
         self._producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka.bootstrap_servers,
             acks="all",
+            linger_ms=settings.kafka.linger_ms,
         )
         await self._producer.start()
 

@@ -9,6 +9,7 @@ class KafkaSettings(BaseModel):
     email_topic: str
     push_topic: str
     events_dlq_topic: str
+    linger_ms: int
 
 
 class ApiSettings(BaseModel):
@@ -64,6 +65,7 @@ class Settings(BaseSettings):
     processor: ProcessorSettings
     mock_providers: MockProvidersSettings
     worker: WorkerSettings
+
 
 
 settings = Settings()
