@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 
 import grpc
 from loguru import logger
@@ -24,7 +25,7 @@ async def run() -> None:
         event_publisher=event_publisher,
     )
 
-    server = grpc.aio.server()
+    server = grpc.aio.server(options=[("grpc.so_reuseport", 1)])
     events_pb2_grpc.add_EventServiceServicer_to_server(EventService(accept_event_use_case), server)
     address = f"{settings.api.host}:{settings.api.grpc_port}"
     server.add_insecure_port(address)
@@ -40,5 +41,14 @@ async def run() -> None:
         logger.info("ns_api_grpc stopped")
 
 
-if __name__ == "__main__":
+def serve() -> None:
     asyncio.run(run())
+
+
+if __name__ == "__main__":
+    spawn_context = multiprocessing.get_context("spawn")
+    processes = [spawn_context.Process(target=serve) for _ in range(settings.api.workers)]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()

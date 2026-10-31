@@ -14,7 +14,9 @@ class KafkaSettings(BaseModel):
 class ApiSettings(BaseModel):
     host: str
     port: int
+    workers: int
     grpc_port: int
+
 
 
 class DatabaseSettings(BaseModel):
