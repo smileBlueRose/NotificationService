@@ -1,0 +1,14 @@
+{
+  "events": 10000,
+  "json": {
+    "avg_bytes": 186.8,
+    "min_bytes": 182,
+    "max_bytes": 189
+  },
+  "protobuf": {
+    "avg_bytes": 99.0,
+    "min_bytes": 95,
+    "max_bytes": 101
+  },
+  "protobuf_to_json_ratio": 0.53
+}
