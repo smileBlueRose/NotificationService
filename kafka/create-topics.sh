@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-BOOTSTRAP_SERVER="kafka:29092"
+BOOTSTRAP_SERVER="kafka-1:29092"
 KAFKA_TOPICS="/opt/kafka/bin/kafka-topics.sh"
 
 create_topic() {
@@ -11,7 +11,7 @@ create_topic() {
     --create --if-not-exists \
     --topic "$topic_name" \
     --partitions "$partitions" \
-    --replication-factor 1
+    --replication-factor 3
 }
 
 create_topic events 16
