@@ -1,38 +1,105 @@
+x-kafka-broker: &kafka-broker
+  image: apache/kafka:4.4.0
+  healthcheck:
+    test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:29092"]
+    interval: 5s
+    timeout: 10s
+    retries: 30
+
+x-kafka-environment: &kafka-environment
+  CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+  KAFKA_PROCESS_ROLES: broker,controller
+  KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_LOG_RETENTION_HOURS: 72
+  KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"
+
+x-app: &app
+  image: localhost/notification_service:latest
+  env_file: .env
+  depends_on:
+    kafka-1:
+      condition: service_healthy
+    kafka-2:
+      condition: service_healthy
+    kafka-3:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+x-app-environment: &app-environment
+  KAFKA__BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+  DB__HOST: postgres
+  DB__PORT: 5432
+  API__HOST: 0.0.0.0
+  MOCK_PROVIDERS__HOST: 0.0.0.0
+  WORKER__PROVIDERS_BASE_URL: http://mock-providers:8001
+
 services:
-  kafka:
-    image: apache/kafka:4.4.0
-    container_name: kafka
+  kafka-1:
+    <<: *kafka-broker
+    container_name: kafka-1
     ports:
       - "9092:9092"
     environment:
+      <<: *kafka-environment
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_LOG_RETENTION_HOURS: 72
-    healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:29092,EXTERNAL://localhost:9092
+
+  kafka-2:
+    <<: *kafka-broker
+    container_name: kafka-2
+    ports:
+      - "9094:9092"
+    environment:
+      <<: *kafka-environment
+      KAFKA_NODE_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:29092,EXTERNAL://localhost:9094
+
+  kafka-3:
+    <<: *kafka-broker
+    container_name: kafka-3
+    ports:
+      - "9096:9092"
+    environment:
+      <<: *kafka-environment
+      KAFKA_NODE_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:29092,EXTERNAL://localhost:9096
 
   kafka-init:
     image: apache/kafka:4.4.0
     depends_on:
-      kafka:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
         condition: service_healthy
     volumes:
       - ./kafka/create-topics.sh:/create-topics.sh:ro
     entrypoint: ["/bin/sh", "/create-topics.sh"]
     restart: "no"
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+    depends_on:
+      kafka-1:
+        condition: service_healthy
 
   postgres:
     image: postgres:18.6-bookworm
@@ -51,17 +118,57 @@ services:
       timeout: 5s
       retries: 20
 
-  kafka-ui:
-    image: ghcr.io/kafbat/kafka-ui:latest
-    container_name: kafka-ui
+  ns-api-rest:
+    <<: *app
+    container_name: ns-api-rest
+    command: ["python", "src/ns_api/rest/main.py"]
     ports:
-      - "8080:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-    depends_on:
-      kafka:
-        condition: service_healthy
+      - "8000:8000"
+    environment: *app-environment
+
+  ns-api-grpc:
+    <<: *app
+    container_name: ns-api-grpc
+    command: ["python", "src/ns_api/grpc/main.py"]
+    ports:
+      - "50051:50051"
+    environment: *app-environment
+
+  ns-processor-1:
+    <<: *app
+    command: ["python", "src/ns_processor/main.py"]
+    environment: *app-environment
+
+  ns-processor-2:
+    <<: *app
+    command: ["python", "src/ns_processor/main.py"]
+    environment: *app-environment
+
+  ns-worker-email-1:
+    <<: *app
+    command: ["python", "src/ns_worker/main.py", "--channel", "email"]
+    environment: *app-environment
+
+  ns-worker-email-2:
+    <<: *app
+    command: ["python", "src/ns_worker/main.py", "--channel", "email"]
+    environment: *app-environment
+
+  ns-worker-push-1:
+    <<: *app
+    command: ["python", "src/ns_worker/main.py", "--channel", "push"]
+    environment: *app-environment
+
+  ns-worker-push-2:
+    <<: *app
+    command: ["python", "src/ns_worker/main.py", "--channel", "push"]
+    environment: *app-environment
+
+  mock-providers:
+    <<: *app
+    container_name: mock-providers
+    command: ["python", "src/mock_providers/main.py"]
+    environment: *app-environment
 
 volumes:
   postgres-data:
