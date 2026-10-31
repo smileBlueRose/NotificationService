@@ -171,8 +171,6 @@ Client traffic for 100 000 requests: REST 32 MB sent, gRPC 16 MB sent.
 - Both reach ~3000 rps per instance. The limit is shared dependencies (Kafka with `acks=all`, PostgreSQL, CPU of one VM), not the protocol.
 - At 1 VU latency is ~8 ms, up to 5 ms of it is `linger_ms`; under load batching pays off.
 - protobuf is ~2x smaller, but at the SIS #1 peak (9000 events/s) it is ~1.7 MB/s vs ~0.9 MB/s: not a bottleneck.
-- With 1 process per API and no `uvloop` gRPC was ~1.8x faster: that was pure-Python HTTP overhead of FastAPI, gone after scaling to 4 processes.
-- The first Python benchmark client (httpx) itself became the bottleneck at 50 concurrent requests, so all final numbers are measured with k6.
 
 ### Conclusion
 
@@ -182,8 +180,6 @@ I keep REST/JSON for the NS API:
 - End-to-end delivery (p99 < 5 s) is dominated by Kafka, the processor and providers (~250 ms), not by the input format.
 - Events are stored in Kafka as JSON anyway, so the protobuf size gain is lost at the first hop.
 - REST is simpler for producers: no generated code, debugging with `curl`, readable messages.
-
-The benchmark also confirms the SIS #1 estimate: one instance handles ~3000 events/s, so the 9000/s peak needs 5 instances at 60% utilization.
 
 ## Differences from SIS #1
 
