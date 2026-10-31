@@ -84,9 +84,34 @@ Full SIS #1 design (with load balancer, Redis cache, rate limiter and Recipient 
 ### Idempotency, timeouts and retries
 
 - **NS API:** duplicate `event_id` is not written to Kafka again. Order: Kafka first, then DB, so a failure causes a duplicate, never a loss. Timeouts: Kafka publish 2 s, DB query 1 s. If Kafka or PostgreSQL is unavailable, the API answers `503` (`UNAVAILABLE` in gRPC).
-- **Producer client:** timeout per attempt, up to 5 attempts with exponential backoff and jitter (2-4, 4-8, 8-16, 16-32 s), 90 s deadline. Retries only on network errors, `429` and `5xx`; the same `event_id` in every attempt.
+- **Producer client:** timeout per attempt 5 s (above the API worst case of 2 s + 1 s), up to 5 attempts with exponential backoff and jitter (2-4, 4-8, 8-16, 16-32 s), 90 s deadline. Retries only on network errors, `429` and `5xx`; the same `event_id` in every attempt.
 - **Processor:** the same event gives the same `notification_id`, `INSERT ... ON CONFLICT DO NOTHING`. Offset is committed only after processing; after 5 failed attempts with backoff the event goes to `events-dlq`.
 - **Worker:** skips notifications already `SENT`; provider timeout 3 s; failures go through `retry-5s -> retry-30s -> retry-5m -> DLQ`. Each retry topic has its own consumer, so waiting in one topic does not block others. The only unavoidable duplicate: provider accepted, worker crashed before saving `SENT`.
+
+## Project structure
+
+```
+src/
+  common/           settings, models, database pool, shared errors
+  ns_api/
+    rest/           FastAPI app and router
+    grpc/           gRPC server and service
+                    use case, Kafka publisher and repository shared by both
+  ns_processor/     event consumer, use case, repositories, DLQ publisher
+  ns_worker/        notification consumers, use case, provider client, templates, retry topics
+  mock_providers/   fake SES / FCM / APNs
+  producer/         producer client with timeouts and retries
+  event_contract/   code generated from proto/
+  benchmark/        payload size and chart scripts
+proto/              gRPC contract
+k6/                 k6 load scripts for REST and gRPC
+database/           init.sql, seed.sql, drop.sql
+kafka/              topic creation script
+benchmark_results/  benchmark data
+docs/images/        charts
+compose.yml         full infrastructure
+Dockerfile          one image for all services
+```
 
 ## How to run
 
@@ -124,12 +149,12 @@ curl -i -X POST http://127.0.0.1:8000/v1/events \
 - Both APIs call the same `AcceptEventUseCase`; only the transport differs.
 - Each API: 1 container, 4 processes (uvicorn workers with `uvloop` for REST, `SO_REUSEPORT` processes for gRPC), Kafka producer `linger_ms=5`.
 - 3 Kafka brokers, 1 PostgreSQL. One Podman VM: 7 vCPU, 16 GB RAM.
-- Processors and notification workers were running during the benchmark and processed the accepted events, sharing Kafka, PostgreSQL and CPU with the API.
+- Processors and notification workers were running during the benchmark and processed the accepted events, sharing Kafka, PostgreSQL and CPU with the API. Mock providers failed 5% of requests (`MOCK_PROVIDERS__FAILURE_RATE=0.05`).
 - Load generator: k6 inside the container network (no macOS port forwarding). N virtual users, each sends the next request right after the previous response.
 - Event: `pin_liked` for a random recipient out of 1000, unique `event_id` per request.
 - VUs 1, 10, 50: 10 000 requests; VUs 100, 200: 100 000 requests.
 
-Run:
+Run (change `VUS` and `REQUESTS` for each level):
 
 ```bash
 podman run --rm --network sis2_default -v ./k6:/scripts docker.io/grafana/k6 run -e URL=http://ns-api-rest:8000 -e VUS=50 -e REQUESTS=10000 /scripts/rest_benchmark.js
@@ -168,7 +193,7 @@ Client traffic for 100 000 requests: REST 32 MB sent, gRPC 16 MB sent.
 ### Analysis
 
 - REST and gRPC have the same latency and throughput within run-to-run noise (+-10%). On short runs gRPC was a bit faster, on long runs REST was a bit faster.
-- Both reach ~3000 rps per instance. The limit is shared dependencies (Kafka with `acks=all`, PostgreSQL, CPU of one VM), not the protocol.
+- On this stand both protocols reach the same ceiling of ~3000 requests/s: the transport does not change it.
 - At 1 VU latency is ~8 ms, up to 5 ms of it is `linger_ms`; under load batching pays off.
 - protobuf is ~2x smaller, but at the SIS #1 peak (9000 events/s) it is ~1.7 MB/s vs ~0.9 MB/s: not a bottleneck.
 
@@ -177,7 +202,7 @@ Client traffic for 100 000 requests: REST 32 MB sent, gRPC 16 MB sent.
 I keep REST/JSON for the NS API:
 
 - gRPC gives no latency or throughput gain at the SIS #1 load, only less traffic that is not a bottleneck.
-- End-to-end delivery (p99 < 5 s) is dominated by Kafka, the processor and providers (~250 ms), not by the input format.
+- End-to-end delivery (p99 < 5 s) is dominated by Kafka, the processor and providers (~250 ms per provider call, SIS #1 estimate), not by the input format.
 - Events are stored in Kafka as JSON anyway, so the protobuf size gain is lost at the first hop.
 - REST is simpler for producers: no generated code, debugging with `curl`, readable messages.
 
