@@ -9,6 +9,7 @@ from loguru import logger
 from common.config import settings
 from common.db import Database
 from common.errors import ServiceUnavailableError
+from common.kafka_producer import KafkaProducer
 from ns_api.event_publisher import EventPublisher
 from ns_api.repository import AcceptedEventRepository
 from ns_api.rest.router import router
@@ -18,21 +19,20 @@ from ns_api.use_case import AcceptEventUseCase
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     database = Database()
-    event_publisher = EventPublisher()
+    kafka_producer = KafkaProducer(linger_ms=settings.kafka.linger_ms)
 
     await database.connect()
-    await event_publisher.start()
+    await kafka_producer.start()
     logger.info("ns_api started")
 
-    accepted_event_repository = AcceptedEventRepository(database.pool)
     app.state.accept_event_use_case = AcceptEventUseCase(
-        accepted_event_repository=accepted_event_repository,
-        event_publisher=event_publisher,
+        accepted_event_repository=AcceptedEventRepository(database.pool),
+        event_publisher=EventPublisher(kafka_producer),
     )
 
     yield
 
-    await event_publisher.stop()
+    await kafka_producer.stop()
     await database.disconnect()
     logger.info("ns_api stopped")
 
@@ -51,7 +51,7 @@ async def handle_service_unavailable(request: Request, error: ServiceUnavailable
 
 
 @app.get("/")
-async def root():
+async def root() -> RedirectResponse:
     return RedirectResponse(url="/docs")
 
 

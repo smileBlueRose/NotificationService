@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from common.config import settings
 from common.db import Database
 from common.errors import TRANSIENT_ERRORS
+from common.kafka_producer import KafkaProducer
 from common.models import Channel, Notification
 from ns_worker.notification_publisher import NotificationPublisher
 from ns_worker.provider_client import ProviderClient
@@ -78,10 +79,10 @@ async def consume_topic(topic: str, delay_seconds: int, use_case: DeliverNotific
 async def run(channel: Channel) -> None:
     channel_topics = ChannelTopics.for_channel(channel)
     database = Database()
-    notification_publisher = NotificationPublisher()
+    kafka_producer = KafkaProducer()
 
     await database.connect()
-    await notification_publisher.start()
+    await kafka_producer.start()
 
     async with httpx.AsyncClient(
         base_url=settings.worker.providers_base_url,
@@ -90,7 +91,7 @@ async def run(channel: Channel) -> None:
         use_case = DeliverNotificationUseCase(
             notification_repository=NotificationRepository(database.pool),
             provider_client=ProviderClient(http_client),
-            notification_publisher=notification_publisher,
+            notification_publisher=NotificationPublisher(kafka_producer),
             channel_topics=channel_topics,
         )
         consumers = [consume_topic(channel_topics.main, 0, use_case)]
@@ -102,7 +103,7 @@ async def run(channel: Channel) -> None:
         try:
             await asyncio.gather(*consumers)
         finally:
-            await notification_publisher.stop()
+            await kafka_producer.stop()
             await database.disconnect()
             logger.info("ns_worker stopped channel={}", channel.value)
 

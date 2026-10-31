@@ -196,6 +196,7 @@ Client traffic for 100 000 requests: REST 32 MB sent, gRPC 16 MB sent.
 - On this stand both protocols reach the same ceiling of ~3000 requests/s: the transport does not change it.
 - At 1 VU latency is ~8 ms, up to 5 ms of it is `linger_ms`; under load batching pays off.
 - protobuf is ~2x smaller, but at the SIS #1 peak (9000 events/s) it is ~1.7 MB/s vs ~0.9 MB/s: not a bottleneck.
+- Rough `podman stats` snapshots taken during the runs (not exact averages) show no single container at 100% CPU: the API grows to ~2 cores, PostgreSQL to ~0.8, Kafka stays at ~1.7-2.3 cores for all three brokers, mostly from background replication and pipeline consumers. The ceiling looks like competition of all containers for 7 vCPU of one VM rather than one bottleneck.
 
 ### Conclusion
 

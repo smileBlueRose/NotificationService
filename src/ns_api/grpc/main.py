@@ -6,6 +6,7 @@ from loguru import logger
 
 from common.config import settings
 from common.db import Database
+from common.kafka_producer import KafkaProducer
 from event_contract import events_pb2_grpc
 from ns_api.event_publisher import EventPublisher
 from ns_api.grpc.service import EventService
@@ -15,14 +16,14 @@ from ns_api.use_case import AcceptEventUseCase
 
 async def run() -> None:
     database = Database()
-    event_publisher = EventPublisher()
+    kafka_producer = KafkaProducer(linger_ms=settings.kafka.linger_ms)
 
     await database.connect()
-    await event_publisher.start()
+    await kafka_producer.start()
 
     accept_event_use_case = AcceptEventUseCase(
         accepted_event_repository=AcceptedEventRepository(database.pool),
-        event_publisher=event_publisher,
+        event_publisher=EventPublisher(kafka_producer),
     )
 
     server = grpc.aio.server(options=[("grpc.so_reuseport", 1)])
@@ -36,7 +37,7 @@ async def run() -> None:
         await server.wait_for_termination()
     finally:
         await server.stop(grace=5)
-        await event_publisher.stop()
+        await kafka_producer.stop()
         await database.disconnect()
         logger.info("ns_api_grpc stopped")
 

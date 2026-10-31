@@ -5,6 +5,7 @@ from loguru import logger
 
 from common.config import settings
 from common.db import Database
+from common.kafka_producer import KafkaProducer
 from ns_processor.dead_letter_publisher import DeadLetterPublisher
 from ns_processor.message_handler import EventMessageHandler
 from ns_processor.notification_publisher import NotificationPublisher
@@ -14,8 +15,7 @@ from ns_processor.use_case import ProcessEventUseCase
 
 async def run() -> None:
     database = Database()
-    notification_publisher = NotificationPublisher()
-    dead_letter_publisher = DeadLetterPublisher()
+    kafka_producer = KafkaProducer()
     consumer = AIOKafkaConsumer(
         settings.kafka.events_topic,
         bootstrap_servers=settings.kafka.bootstrap_servers,
@@ -25,17 +25,19 @@ async def run() -> None:
     )
 
     await database.connect()
-    await notification_publisher.start()
-    await dead_letter_publisher.start()
+    await kafka_producer.start()
     await consumer.start()
     logger.info("ns_processor started")
 
     use_case = ProcessEventUseCase(
         recipient_repository=RecipientRepository(database.pool),
         notification_repository=NotificationRepository(database.pool),
-        notification_publisher=notification_publisher,
+        notification_publisher=NotificationPublisher(kafka_producer),
     )
-    message_handler = EventMessageHandler(use_case=use_case, dead_letter_publisher=dead_letter_publisher)
+    message_handler = EventMessageHandler(
+        use_case=use_case,
+        dead_letter_publisher=DeadLetterPublisher(kafka_producer),
+    )
 
     try:
         async for message in consumer:
@@ -43,8 +45,7 @@ async def run() -> None:
             await consumer.commit()
     finally:
         await consumer.stop()
-        await dead_letter_publisher.stop()
-        await notification_publisher.stop()
+        await kafka_producer.stop()
         await database.disconnect()
         logger.info("ns_processor stopped")
 
